@@ -37,7 +37,7 @@ uart_fifo_top#(
 
 initial begin
     clk = 0;
-    forever #10 clk = ~clk; 
+    forever #2.5 clk = ~clk; 
 end
 
 reg [3:0] rxd_cnt = 0;
@@ -48,15 +48,15 @@ task test1_program(input [DATA_WIDTH-1:0] data);begin
     @(negedge clk);
     rxd = 0;
     rxd_cnt = 0;
-    repeat(5207)@(negedge clk);
+    repeat(20832)@(negedge clk);
     repeat(8)begin
         rxd = data[rxd_cnt];
         rxd_cnt = rxd_cnt +1;
-        repeat(5207)@(negedge clk);
+        repeat(20832)@(negedge clk);
     end
     rxd_cnt = 0;
     rxd = 1;
-    repeat(5207)@(negedge clk);
+    repeat(20832)@(negedge clk);
 end 
 endtask
 /*
@@ -77,11 +77,11 @@ task test3_program(input [DATA_WIDTH-1:0] data);begin
     @(negedge clk);
     rxd = 0;
     rxd_cnt = 0;
-    repeat(5207)@(negedge clk);
+    repeat(20832)@(negedge clk);
     repeat(8)begin
         rxd = data[rxd_cnt];
         rxd_cnt = rxd_cnt +1;
-        repeat(5207)@(negedge clk);
+        repeat(20832)@(negedge clk);
         if(rxd_cnt == 4)begin
             @(negedge clk);
             rst = 1;
@@ -90,18 +90,26 @@ task test3_program(input [DATA_WIDTH-1:0] data);begin
         end
     end
     rxd = 1;
-    repeat(5207)@(negedge clk);
+    repeat(20832)@(negedge clk);
 end 
 endtask
 
 
 
 initial begin
-    prescale = 651;
-    rst = 1;
-    #1000;
+    // 1. 在最开始（0ns），把所有的输入引脚都给一个明确的、安全的初始值
+    clk = 0;
+    rst = 1;        // 保持复位
+    rxd = 1;        // 👈 关键：一开始就让串口线保持空闲高电平，消灭红色的 X
+    prescale = 2604;
+
+    // 2. 保持复位足够长的时间（门级仿真建议至少 1us 以上）
+    #10000; 
+    
+    // 3. 在时钟下降沿同步释放复位（防止建立/保持时间违例）
     @(negedge clk);
     rst = 0;
+    
     #1000;
     test1_program(8'b0000_1111);
     #1000;
@@ -109,7 +117,9 @@ initial begin
     #1000;
     test3_program(8'b0110_1001);
     #1000000;
-
+    #1000000;
+    #1000000;
+    #1000000;
     $finish;
 end
 
